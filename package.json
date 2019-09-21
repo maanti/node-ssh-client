@@ -1,0 +1,27 @@
+{
+    "name": "ssh",
+    "version": "1.0.0",
+    "description": "",
+    "main": "dist/ssh.js",
+    "types": "dist/ssh.d.ts",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "watch": "tsc -w --project tsconfig.json",
+        "build": "tsc --project tsconfig.json",
+        "start": "tsc --project tsconfig.json && node ./dist/ssh.js"
+    },
+    "keywords": [],
+    "author": "Antipov Matvey",
+    "license": "ISC",
+    "dependencies": {
+        "@types/node": "^12.7.5",
+        "ssh2": "^0.8.5",
+        "ts-node": "^8.4.1",
+        "tslint": "^5.20.0",
+        "typescript": "^3.6.3",
+        "typings": "^2.1.1"
+    },
+    "devDependencies": {
+        "eslint": "^6.4.0"
+    }
+}

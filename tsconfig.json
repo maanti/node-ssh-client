@@ -1,0 +1,16 @@
+{
+    "compilerOptions": {
+        "rootDir": "./app",
+        "outDir": "./dist",
+        "module": "commonjs",
+        "esModuleInterop": true,
+        "sourceMap": true,
+        "target": "es6",
+        "alwaysStrict": true,
+        "declaration": true,
+        "removeComments": true
+    },
+    "include": [
+        "./app/**/*.ts"
+    ]
+}
