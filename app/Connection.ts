@@ -6,21 +6,42 @@ import * as fs from "fs";
 import {ReadStream, WriteStream} from "fs";
 import ILoginCredentials from "./ILoginCredentials";
 import * as os from "os";
+import {exec} from "child_process";
 
 export class Connection {
+
+    private static handleShellOutput(data) {
+        process.stdin.pause();
+        process.stdout.write(data);
+        process.stdin.resume();
+    }
+
     private readonly credentials: ILoginCredentials;
+    private readonly forwardRule: string;
     private readonly privateKeyPath: string;
     private shellStream;
     private connection: Client;
 
-    constructor(sshUrl: string) {
+    constructor(sshUrl: string, forwardRule?: string) {
         this.credentials = InputParser.parseUrl(sshUrl);
+        this.forwardRule = forwardRule;
         this.privateKeyPath = `${os.homedir()}${path.sep}.ssh${path.sep}id_rsa`;
     }
 
     public async startInteractiveSession(): Promise<void> {
         await this.createConnection();
         await this.startShell();
+    }
+
+    public async forward(): Promise<void> {
+        return new Promise((resolve, reject) => {
+            const ssh = exec(`ssh -N -L ${this.forwardRule} ${this.credentials.login}@${this.credentials.host} ${this.credentials.port && "-P" + this.credentials.port || "-P22"}`);
+            console.log("SSH tunnel created");
+            process.on("SIGINT", () => {
+                ssh.kill();
+                resolve();
+            });
+        });
     }
 
     private async createConnection(): Promise<void> {
@@ -58,7 +79,7 @@ export class Connection {
                     this.connection.end();
                     return resolve();
                 }).on("data", (data) => {
-                    this.handleShellOutput(data);
+                    Connection.handleShellOutput(data);
                 }).stderr.on("data", (data) => {
                     process.stderr.write(data);
                 });
@@ -79,12 +100,6 @@ export class Connection {
             });
         });
 
-    }
-
-    private handleShellOutput(data) {
-        process.stdin.pause();
-        process.stdout.write(data);
-        process.stdin.resume();
     }
 
     private handleUserInput(line) {
