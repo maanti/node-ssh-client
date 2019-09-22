@@ -2,6 +2,7 @@ import {InputParser} from "./InputParser";
 import {Client} from "ssh2";
 import readline from "readline";
 import * as path from "path";
+import * as fs from "fs";
 
 export class Connection {
     private readonly credentials: ILoginCredentials;
@@ -11,6 +12,7 @@ export class Connection {
     private connection: Client;
 
     constructor(sshUrl: string) {
+        this.ignoreNext = false;
         this.credentials = InputParser.parseUrl(sshUrl);
         this.privateKeyPath = path.join(process.env.HOME, ".ssh/id_rsa");
     }
@@ -31,7 +33,7 @@ export class Connection {
                         terminal: false
                     });
 
-                    shellStream.on("close", () => {
+                    this.shellStream.on("close", () => {
                         this.connection.end();
                     }).on("data", (data) => {
                         this.handleShellOutput(data);
@@ -40,7 +42,11 @@ export class Connection {
                     });
 
                     reader.on("line", (line) => {
-                        this.handleUserInput(line);
+                        try {
+                            this.handleUserInput(line);
+                        } catch (err) {
+                            console.error("Error during custom command execution");
+                        }
                     });
                 });
             }).connect({
@@ -73,6 +79,9 @@ export class Connection {
             if (command === "get") {
                 this.get(argument, process.cwd());
             }
+            if (command === "put") {
+                this.put(argument);
+            }
         }
         if (!InputParser.parseCommand(line)) {
             this.ignoreNext = true;
@@ -83,15 +92,17 @@ export class Connection {
     private get(fromPath: string, toPath: string) {
         this.connection.sftp((err, sftp) => {
             if (err) {
-                throw err;
+                console.error("SFTP connection error");
+                return;
             }
-            console.log(`Downloading file from ${this.credentials.host}:${fromPath} to localhost:${toPath}`);
-            const fileNameRegexp = /[-_\w]+[.][\w]+$/i;
+            const fileNameRegexp = /([^\/]+)$/i;
             const fileName = fromPath.match(fileNameRegexp);
-            toPath = path.join(toPath, fileName && fileName[0]);
+            toPath = path.join(toPath, fileName && fileName[1]);
+            console.log(`Downloading file from ${this.credentials.host}:${fromPath} to localhost:${toPath}`);
             sftp.fastGet(fromPath, toPath, {}, (error) => {
                 if (error) {
-                    throw error;
+                    console.error("SFTP get error");
+                    return;
                 }
                 console.log("File transferred");
                 sftp.end();
@@ -99,16 +110,30 @@ export class Connection {
         });
     }
 
-    private put(fromPath: string, toPath: string) {
+    private put(fromPath: string) {
         this.connection.sftp((err, sftp) => {
             if (err) {
-                throw err;
+                console.error("SFTP connection error");
+                return;
             }
-            console.log(`Uploading file from localhost:${fromPath} to ${this.credentials.host}:${toPath}`);
-            const writeStream = sftp.createWriteStream(toPath);
+            const fileNameRegexp = /\/([^\/]+)$/i;
+            const fileName = fromPath.match(fileNameRegexp);
+            sftp.realpath(".", (e, absPath) => {
+                if (e) {
+                    console.error("Cannot get the remote path");
+                    return;
+                }
+                const toPath = path.join(absPath, fileName[1]);
 
-            writeStream.on("close", () => {
-                console.log("File transferred");
+                const writeStream = sftp.createWriteStream(toPath);
+                const readStream = fs.createReadStream(fromPath);
+
+                console.log(`Uploading file from localhost:${fromPath} to ${this.credentials.host}:${toPath}`);
+
+                writeStream.on("close", () => {
+                    console.log("File transferred");
+                });
+                readStream.pipe(writeStream);
             });
         });
     }
