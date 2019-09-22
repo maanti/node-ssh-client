@@ -3,6 +3,7 @@ import {Client} from "ssh2";
 import readline from "readline";
 import * as path from "path";
 import * as fs from "fs";
+import ILoginCredentials from "./ILoginCredentials";
 
 export class Connection {
     private readonly credentials: ILoginCredentials;

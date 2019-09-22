@@ -1,3 +1,5 @@
+import ILoginCredentials from "./ILoginCredentials";
+
 export class InputParser {
     public static parseUrl(sshUrl: string): ILoginCredentials {
         sshUrl = sshUrl.trim();
