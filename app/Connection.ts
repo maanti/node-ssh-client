@@ -3,6 +3,7 @@ import {Client} from "ssh2";
 import readline from "readline";
 import * as path from "path";
 import * as fs from "fs";
+import {ReadStream, WriteStream} from "fs";
 import ILoginCredentials from "./ILoginCredentials";
 
 export class Connection {
@@ -18,7 +19,7 @@ export class Connection {
         this.privateKeyPath = path.join(process.env.HOME, ".ssh/id_rsa");
     }
 
-    public startSession() {
+    public startSession(): Promise<void> {
         return new Promise((resolve, reject) => {
             this.connection = new Client();
 
@@ -36,6 +37,7 @@ export class Connection {
 
                     this.shellStream.on("close", () => {
                         this.connection.end();
+                        resolve();
                     }).on("data", (data) => {
                         this.handleShellOutput(data);
                     }).stderr.on("data", (data) => {
@@ -64,7 +66,7 @@ export class Connection {
         if (!this.ignoreNext) {
             process.stdout.write(data);
         } else {
-            const str = data.toString().substring(data.indexOf("\n") + 1);
+            const str: string = data.toString().substring(data.indexOf("\n") + 1);
             if (str) {
                 process.stdout.write(str);
                 this.ignoreNext = false;
@@ -74,7 +76,7 @@ export class Connection {
     }
 
     private handleUserInput(line) {
-        const parsed = InputParser.parseCommand(line);
+        const parsed: { command: string, argument: string } | false = InputParser.parseCommand(line);
         if (parsed) {
             const {command, argument} = parsed;
             if (command === "get") {
@@ -90,15 +92,16 @@ export class Connection {
         }
     }
 
-    private get(fromPath: string, toPath: string) {
+    private get(fromPath: string, toPath: string): void {
         this.connection.sftp((err, sftp) => {
             if (err) {
                 console.error("SFTP connection error");
                 return;
             }
-            const fileNameRegexp = /([^\/]+)$/i;
-            const fileName = fromPath.match(fileNameRegexp);
-            toPath = path.join(toPath, fileName && fileName[1]);
+            const fileNameRegexp: RegExp = /([^\/]+)$/i;
+            const matches: string[] = fromPath.match(fileNameRegexp);
+            const fileName: string = matches && matches[1];
+            toPath = path.join(toPath, fileName);
             console.log(`Downloading file from ${this.credentials.host}:${fromPath} to localhost:${toPath}`);
             sftp.fastGet(fromPath, toPath, {}, (error) => {
                 if (error) {
@@ -111,23 +114,24 @@ export class Connection {
         });
     }
 
-    private put(fromPath: string) {
+    private put(fromPath: string): void {
         this.connection.sftp((err, sftp) => {
             if (err) {
                 console.error("SFTP connection error");
                 return;
             }
-            const fileNameRegexp = /\/([^\/]+)$/i;
-            const fileName = fromPath.match(fileNameRegexp);
-            sftp.realpath(".", (e, absPath) => {
+            const fileNameRegexp: RegExp = /\/([^\/]+)$/i;
+            const matches: string[] = fromPath.match(fileNameRegexp);
+            const fileName: string = matches && matches[1];
+            sftp.realpath(".", (e, homePath) => {
                 if (e) {
                     console.error("Cannot get the remote path");
                     return;
                 }
-                const toPath = path.join(absPath, fileName[1]);
+                const toPath: string = path.join(homePath, fileName);
 
-                const writeStream = sftp.createWriteStream(toPath);
-                const readStream = fs.createReadStream(fromPath);
+                const writeStream: WriteStream = sftp.createWriteStream(toPath);
+                const readStream: ReadStream = fs.createReadStream(fromPath);
 
                 console.log(`Uploading file from localhost:${fromPath} to ${this.credentials.host}:${toPath}`);
 

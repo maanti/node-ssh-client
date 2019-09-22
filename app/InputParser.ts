@@ -23,7 +23,7 @@ export class InputParser {
     }
 
     public static parseCommand(rawInput: string): { argument: string; command: string } | false {
-        const [command, argument] = rawInput.trim().split(/\s+/);
+        const [command, argument]: string[] = rawInput.trim().split(/\s+/);
 
         if (["get", "put"].includes(command)) {
             return {command, argument};
