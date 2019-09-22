@@ -7,7 +7,7 @@ async function start(): Promise<void> {
         return;
     }
     const connection: Connection = new Connection(sshUrl);
-    await connection.startSession();
+    await connection.startInteractiveSession();
 }
 
 
