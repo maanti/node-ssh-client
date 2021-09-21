@@ -16,7 +16,7 @@
     "dependencies": {
         "@types/mocha": "^5.2.7",
         "@types/node": "^12.7.5",
-        "ssh2": "^0.8.5",
+        "ssh2": "^1.4.0",
         "ts-node": "^8.4.1",
         "tslint": "^5.20.0",
         "typescript": "^3.6.3",
